@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pufferfish Ballon Pop</title>
+<link rel="stylesheet" href="style.css"/>
+
+</head>
+
+<body>
+
+<div id="gameArea">
+
+    <canvas id="myCanvas"></canvas>
+
+    <div id="startScreen">
+        <h1>Bounce Physics Demo</h1>
+        <p style="color:#aaa">use arrow keys or A/D to move</p>
+        <button id="btnStart">START</button>
+    </div>
+
+    <button id="btnRestart">Restart</button>
+
+</div>
+
+<script>
+
+// grab the canvas
+var canvas = document.getElementById("myCanvas");
+var ctx = canvas.getContext("2d");
+
+var ballImage = new Image();
+ballImage.src = "IMG_6571-removebg-preview.png"
+
+var gameRunning = false;
+
+// particles array
+var parts = [];
+
+// trail array (for the ball trail effect)
+var trailDots = [];
+
+// paddle stuff
+var paddle = {
+    x: 0,
+    y: 0,
+    width: 120,
+    height: 16,
+    spd: 8
+};
+
+// ball stuff
+// squish values for the squash and stretch effect
+var ball = {
+    x: 200, y: 200,
+    vx: 4, vy: -4,
+    radius: 43,
+    sqX: 1,
+    sqY: 1
+};
+
+// keyboard input
+var keys = { left: false, right: false };
+
+document.addEventListener("keydown", function(e) {
+    if (e.key == "ArrowLeft" || e.key == "a") keys.left = true;
+    if (e.key == "ArrowRight" || e.key == "d") keys.right = true;
+});
+
+document.addEventListener("keyup", function(e) {
+    if (e.key == "ArrowLeft" || e.key == "a") keys.left = false;
+    if (e.key == "ArrowRight" || e.key == "d") keys.right = false;
+});
+
+// bricks
+var bricks = [];
+var ROWS = 5;
+var COLS = 8;
+
+function buildBricks() {
+    bricks = []; // clear first
+    var spacing = 10;
+    var brickW = (canvas.width - 60) / COLS - spacing;
+    var brickH = 22;
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+            var bx = 30 + c * (brickW + spacing);
+            var by = 60 + r * (brickH + spacing);
+            bricks.push({ x: bx, y: by, w: brickW, h: brickH, alive: true });
+        }
+    }
+}
+
+function resizeCanvas() {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    // move paddle to bottom when resized
+    paddle.y = canvas.height - 30;
+}
+
+window.addEventListener("resize", function() {
+    resizeCanvas();
+});
+
+function resetBall() {
+    ball.x = canvas.width / 2;
+    ball.y = canvas.height / 2;
+    ball.vx = 4;
+    ball.vy = -4;
+    trailDots = [];
+    paddle.x = canvas.width / 2 - paddle.width / 2;
+}
+
+// called when ball hits something - does squish + particles
+function doImpact(dir) {
+    // squash the ball depending on which direction it bounced
+    if (dir == "horiz") {
+        ball.sqX = 0.65;
+        ball.sqY = 1.35;
+    } else {
+        ball.sqX = 1.35;
+        ball.sqY = 0.65;
+    }
+
+    // spawn some particles
+    for (var i = 0; i < 12; i++) {
+        parts.push({
+            x: ball.x,
+            y: ball.y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            alpha: 1.0,
+            col: "green"
+        });
+    }
+}
+
+// same but pink for balloons
+function brickParticles(bx, by) {
+    for (var i = 0; i < 12; i++) {
+        parts.push({
+            x: bx,
+            y: by,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6,
+            alpha: 1.0,
+            col: "pink"
+        });
+    }
+}
+
+function updateAndDrawParticles() {
+    var stillAlive = [];
+    for (var i = 0; i < parts.length; i++) {
+        var p = parts[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.03;
+        if (p.alpha > 0) {
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = p.col;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+            stillAlive.push(p);
+        }
+    }
+    ctx.globalAlpha = 1;
+    parts = stillAlive;
+}
+
+function drawBricks() {
+    for (var i = 0; i < bricks.length; i++) {
+        var b = bricks[i];
+        if (!b.alive) continue;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "orange";
+        ctx.fillStyle = "orange";
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+    }
+    ctx.shadowBlur = 0;
+}
+
+function drawPaddle() {
+    ctx.shadowColor = "cyan";
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = "cyan";
+    ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+    ctx.shadowBlur = 0;
+}
+
+function drawTrail() {
+    for (var i = 0; i < trailDots.length; i++) {
+        var t = trailDots[i];
+        ctx.globalAlpha = i / trailDots.length;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, ball.radius * 0.7, 0, Math.PI * 2);
+        ctx.fillStyle = "red";
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+}
+
+function drawBall() {
+    ctx.save();
+    ctx.translate(ball.x, ball.y);
+    ctx.scale(ball.sqX, ball.sqY);
+    ctx.drawImage(
+        ballImage,
+        -ball.radius,
+        -ball.radius,
+        ball.radius * 2,
+        ball.radius * 2
+    );
+    ctx.restore();
+}
+
+function updatePaddle() {
+    if (keys.left) paddle.x -= paddle.spd;
+    if (keys.right) paddle.x += paddle.spd;
+    // clamp to screen
+    if (paddle.x < 0) paddle.x = 0;
+    if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+}
+
+function updateBall() {
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // add current pos to trail
+    trailDots.push({ x: ball.x, y: ball.y });
+    if (trailDots.length > 12) trailDots.shift();
+
+    // wall bounces
+    if (ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) {
+        ball.vx *= -1;
+        doImpact("horiz");
+    }
+    if (ball.y - ball.radius < 0) {
+        ball.vy *= -1;
+        doImpact("vert");
+    }
+
+    // paddle collision
+    // check if ball is at paddle height and within x range and moving downward
+    if (ball.vy > 0 &&
+        ball.y + ball.radius >= paddle.y &&
+        ball.x > paddle.x &&
+        ball.x < paddle.x + paddle.width)
+    {
+        // angle depends on where it hits the paddle
+        var hitPos = (ball.x - (paddle.x + paddle.width / 2)) / (paddle.width / 2);
+        ball.vx = hitPos * 5;
+        ball.vy = ball.vy * -1;
+        doImpact("vert");
+    }
+
+    // fell off the bottom - reset
+    if (ball.y > canvas.height) {
+        resetBall();
+    }
+
+    // slowly return to normal squish values
+    ball.sqX += (1 - ball.sqX) * 0.15;
+    ball.sqY += (1 - ball.sqY) * 0.15;
+}
+
+function checkBrickCollisions() {
+    for (var i = 0; i < bricks.length; i++) {
+        var b = bricks[i];
+        if (!b.alive) continue;
+
+        // nearest point on brick rect to ball center
+        var nearX = Math.max(b.x, Math.min(ball.x, b.x + b.w));
+        var nearY = Math.max(b.y, Math.min(ball.y, b.y + b.h));
+
+        var distX = ball.x - nearX;
+        var distY = ball.y - nearY;
+        var dist = Math.sqrt(distX * distX + distY * distY);
+
+        if (dist < ball.radius) {
+            b.alive = false;
+            ball.vy *= -1;
+            doImpact("vert");
+            brickParticles(ball.x, ball.y);
+        }
+    }
+}
+
+function gameLoop() {
+    requestAnimationFrame(gameLoop);
+
+    if (!gameRunning) return;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(-100, -100, canvas.width + 200, canvas.height + 200);
+
+    updatePaddle();
+    updateBall();
+    checkBrickCollisions();
+
+    // draw everything
+    drawTrail();
+    updateAndDrawParticles();
+    drawBricks();
+    drawPaddle();
+    drawBall();
+}
+
+// button handlers
+document.getElementById("btnStart").onclick = function() {
+    document.getElementById("startScreen").style.display = "none";
+    document.getElementById("btnRestart").style.display = "block";
+    gameRunning = true;
+    resizeCanvas();
+    buildBricks();
+    resetBall();
+};
+
+document.getElementById("btnRestart").onclick = function() {
+    buildBricks();
+    resetBall();
+};
+
+// init
+resizeCanvas();
+buildBricks();
+resetBall();
+gameLoop();
+
+</script>
+</body>
+</html>
