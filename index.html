@@ -13,11 +13,24 @@
 <div id="gameArea">
 
     <canvas id="myCanvas"></canvas>
-
+    <div id="gameOverMessage">GAME OVER!</div>
+    <div id="eatPrompt">
+        <h1>eat the cake?</h1>
+        <button id="btnEat">yesyesyesss</button>
+    </div>
+    <div id="fishInstruction">
+        click to eat the cake...
+    </div>
+    <div id="oopsMessage">
+        oops...
+    </div>
+    
     <div id="startScreen">
-        <h1>Cakepop</h1>
-        <p style="color:#aaa">use arrow keys or A/D to move</p>
+        <h1>CakePop</h1>
+        <p style="color:#aaa">use arrow keys or a/d to move</p>
         <button id="btnStart">START</button>
+        <link rel="stylesheet" href= "style.css">
+        
     </div>
 
     <button id="btnRestart">Restart</button>
@@ -29,17 +42,35 @@
 // grab the canvas
 var canvas = document.getElementById("myCanvas");
 var ctx = canvas.getContext("2d");
+var startscreen = document.getElementById("startScreen")
 
 var ballImage = new Image();
 ballImage.src = "IMG_6571-removebg-preview.png"
 
+var balloonImage = new Image();
+balloonImage.src = "IMG_6577-removebg-preview.png"
+
+var cakeImage = new Image();
+cakeImage.src = "IMG_6575-removebg-preview.png"
+
+var cake = {
+    x: 360,
+    y: -20,
+    w: 150,
+    h: 180
+};
+
 var gameRunning = false;
+var explosionActive = false;
+var ballExploded = false;
+var gameOver = false;
+var fishScreenActive = false;
+var eatPrompt = document.getElementById("eatPrompt");
+var btnEat = document.getElementById("btnEat");
 
 // particles array
 var parts = [];
 
-// trail array (for the ball trail effect)
-var trailDots = [];
 
 // paddle stuff
 var paddle = {
@@ -75,18 +106,18 @@ document.addEventListener("keyup", function(e) {
 
 // bricks
 var bricks = [];
-var ROWS = 5;
-var COLS = 8;
+var ROWS = 3;
+var COLS = 9;
 
 function buildBricks() {
     bricks = []; // clear first
-    var spacing = 10;
+    var spacing = 8;
     var brickW = (canvas.width - 60) / COLS - spacing;
-    var brickH = 22;
+    var brickH = 50;
     for (var r = 0; r < ROWS; r++) {
         for (var c = 0; c < COLS; c++) {
-            var bx = 30 + c * (brickW + spacing);
-            var by = 60 + r * (brickH + spacing);
+            var bx = 20 + c * (brickW + spacing);
+            var by = 150 + r * (brickH + spacing);
             bricks.push({ x: bx, y: by, w: brickW, h: brickH, alive: true });
         }
     }
@@ -105,16 +136,38 @@ window.addEventListener("resize", function() {
 
 function resetBall() {
     ball.x = canvas.width / 2;
-    ball.y = canvas.height / 2;
+    ball.y = canvas.height / 1.2;
     ball.vx = 4;
     ball.vy = -4;
-    trailDots = [];
+    ball.sqX = 1;
+    ball.sqY = 1;
     paddle.x = canvas.width / 2 - paddle.width / 2;
 }
 
 // called when ball hits something - does squish + particles
 function doImpact(dir) {
     // squash the ball depending on which direction it bounced
+    if (dir == "cake") {
+
+    gameRunning = false;
+    explosionActive = true;
+    ballExploded = true;
+
+    for (var i = 0; i < 60; i++) {
+        parts.push({
+            x: ball.x,
+            y: ball.y,
+            vx: (Math.random() - 0.5) * 15,
+            vy: (Math.random() - 0.5) * 15,
+            alpha: 1.0,
+            col: ["pink", "purple", "yellow", "cyan", "green"][
+                Math.floor(Math.random() * 5)
+            ]
+        });
+    }
+
+    return;
+    }
     if (dir == "horiz") {
         ball.sqX = 0.65;
         ball.sqY = 1.35;
@@ -131,7 +184,7 @@ function doImpact(dir) {
             vx: (Math.random() - 0.5) * 6,
             vy: (Math.random() - 0.5) * 6,
             alpha: 1.0,
-            col: "green"
+            col: "DeepPink"
         });
     }
 }
@@ -173,34 +226,26 @@ function updateAndDrawParticles() {
 function drawBricks() {
     for (var i = 0; i < bricks.length; i++) {
         var b = bricks[i];
+
         if (!b.alive) continue;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "orange";
-        ctx.fillStyle = "orange";
-        ctx.fillRect(b.x, b.y, b.w, b.h);
+
+        ctx.drawImage(
+            balloonImage,
+            b.x,
+            b.y,
+            b.w,
+            b.h
+        );
     }
-    ctx.shadowBlur = 0;
 }
 
 function drawPaddle() {
-    ctx.shadowColor = "cyan";
     ctx.shadowBlur = 20;
-    ctx.fillStyle = "cyan";
+    ctx.fillStyle = "DeepPink";
     ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
     ctx.shadowBlur = 0;
 }
 
-function drawTrail() {
-    for (var i = 0; i < trailDots.length; i++) {
-        var t = trailDots[i];
-        ctx.globalAlpha = i / trailDots.length;
-        ctx.beginPath();
-        ctx.arc(t.x, t.y, ball.radius * 0.7, 0, Math.PI * 2);
-        ctx.fillStyle = "red";
-        ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-}
 
 function drawBall() {
     ctx.save();
@@ -216,6 +261,16 @@ function drawBall() {
     ctx.restore();
 }
 
+function drawCake() {
+    ctx.drawImage(
+        cakeImage,
+        cake.x,
+        cake.y,
+        cake.w,
+        cake.h
+    );
+}
+
 function updatePaddle() {
     if (keys.left) paddle.x -= paddle.spd;
     if (keys.right) paddle.x += paddle.spd;
@@ -227,10 +282,6 @@ function updatePaddle() {
 function updateBall() {
     ball.x += ball.vx;
     ball.y += ball.vy;
-
-    // add current pos to trail
-    trailDots.push({ x: ball.x, y: ball.y });
-    if (trailDots.length > 12) trailDots.shift();
 
     // wall bounces
     if (ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) {
@@ -256,12 +307,14 @@ function updateBall() {
         doImpact("vert");
     }
 
-    // fell off the bottom - reset
-    if (ball.y > canvas.height) {
-        resetBall();
+        // fell off the bottom - game over
+    if (ball.y - ball.radius > canvas.height) {
+        gameRunning = false;
+        gameOver = true;
+
+        document.getElementById("gameOverMessage").style.display = "block";
     }
 
-    // slowly return to normal squish values
     ball.sqX += (1 - ball.sqX) * 0.15;
     ball.sqY += (1 - ball.sqY) * 0.15;
 }
@@ -288,40 +341,171 @@ function checkBrickCollisions() {
     }
 }
 
+function checkCakeCollision() {
+
+    if (gameOver) return;
+
+    var nearX = Math.max(cake.x, Math.min(ball.x, cake.x + cake.w));
+    var nearY = Math.max(cake.y, Math.min(ball.y, cake.y + cake.h));
+
+    var distX = ball.x - nearX;
+    var distY = ball.y - nearY;
+
+    var dist = Math.sqrt(distX * distX + distY * distY);
+
+    if (dist < ball.radius) {
+    gameOver = true;
+    gameRunning = false;
+
+    eatPrompt.style.display = "flex";
+    }
+}
+
+function goToStartScreen() {
+    gameRunning = false;
+    explosionActive = false;
+    ballExploded = false;
+    gameOver = false;
+
+    parts = [];
+
+    startScreen.style.display = "flex";
+}
+
 function gameLoop() {
+
     requestAnimationFrame(gameLoop);
 
-    if (!gameRunning) return;
+    if (!gameRunning && !explosionActive && !fishScreenActive) return;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(-100, -100, canvas.width + 200, canvas.height + 200);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Special fish-growing screen
+    if (fishScreenActive) {
+
+        if (explosionActive) {
+            updateAndDrawParticles();
+
+            if (parts.length == 0) {
+                explosionActive = false;
+                fishScreenActive = false;
+                        
+                document.getElementById("oopsMessage").style.display = "block";
+            }
+        } else {
+            drawBall();
+        }
+
+        return;
+    }
+
+    drawCake();
+
+    if (explosionActive) {
+        updateAndDrawParticles();
+
+        if (parts.length == 0) {
+            explosionActive = false;
+        }
+
+        return;
+    }
 
     updatePaddle();
     updateBall();
-    checkBrickCollisions();
 
-    // draw everything
-    drawTrail();
+    checkBrickCollisions();
+    checkCakeCollision();
+
     updateAndDrawParticles();
     drawBricks();
     drawPaddle();
-    drawBall();
+
+    if (!ballExploded) {
+        drawBall();
+    }
 }
 
 // button handlers
-document.getElementById("btnStart").onclick = function() {
-    document.getElementById("startScreen").style.display = "none";
-    document.getElementById("btnRestart").style.display = "block";
+
+var btnStart = document.getElementById("btnStart");
+var btnRestart = document.getElementById("btnRestart");
+var startScreen = document.getElementById("startScreen");
+
+btnStart.onclick = function() {
+    startScreen.style.display = "none";
+    btnRestart.style.display = "block";
+
+    parts = [];
+    gameOver = false;
+    explosionActive = false;
+    ballExploded = false;
+
     gameRunning = true;
+
     resizeCanvas();
     buildBricks();
     resetBall();
 };
 
-document.getElementById("btnRestart").onclick = function() {
-    buildBricks();
-    resetBall();
+btnRestart.onclick = function() {
+    location.reload();
 };
+
+btnEat.onclick = function() {
+    document.getElementById("fishInstruction").style.display = "block";
+    eatPrompt.style.display = "none";
+
+    fishScreenActive = true;
+    explosionActive = false;
+    ballExploded = false;
+
+    parts = [];
+
+    ball.x = canvas.width / 2;
+    ball.y = canvas.height / 2;
+    ball.radius = 43;
+    ball.sqX = 1;
+    ball.sqY = 1;
+};
+
+
+canvas.addEventListener("click", function(e) {
+    if (!fishScreenActive || explosionActive) return;
+
+    var rect = canvas.getBoundingClientRect();
+
+    var mouseX = (e.clientX - rect.left) * canvas.width / rect.width;
+    var mouseY = (e.clientY - rect.top) * canvas.height / rect.height;
+
+    var dx = mouseX - ball.x;
+    var dy = mouseY - ball.y;
+
+    var distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance < ball.radius) {
+        ball.radius += 12;
+
+        if (ball.radius >= 140) {
+            ballExploded = true;
+            explosionActive = true;
+
+            for (var i = 0; i < 80; i++) {
+                parts.push({
+                    x: ball.x,
+                    y: ball.y,
+                    vx: (Math.random() - 0.5) * 18,
+                    vy: (Math.random() - 0.5) * 18,
+                    alpha: 1,
+                    col: ["pink", "purple", "yellow", "cyan", "green"][
+                        Math.floor(Math.random() * 5)
+                    ]
+                });
+            }
+        }
+    }
+});
 
 // init
 resizeCanvas();
