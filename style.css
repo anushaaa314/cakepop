@@ -1,0 +1,66 @@
+body {
+    background: #111111;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+/* wrapper div */
+#gameArea {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 900px;
+    max-height: 700px;
+}
+
+canvas {
+    background: #000;
+    border: 3px solid cyan;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* the start screen overlay thing */
+#startScreen {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.88);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#startScreen h1 {
+    font-size: 2em;
+    margin-bottom: 10px;
+}
+
+/* TODO: make this look nicer someday */
+button {
+    cursor: pointer;
+    background: cyan;
+    border: none;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 12px 24px;
+    margin-top: 20px;
+}
+
+button:hover {
+    background: #00dddd;
+}
+
+#btnRestart {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: none;
+    padding: 8px 16px;
+}
