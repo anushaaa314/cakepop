@@ -1,4 +1,4 @@
-// grab the canvas
+// grab the canvass
 var canvas = document.getElementById("myCanvas");
 var ctx = canvas.getContext("2d");
 
